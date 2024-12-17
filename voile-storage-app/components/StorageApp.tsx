@@ -145,7 +145,7 @@ const SortableItem: React.FC<SortableItemProps> = ({ sail, onDelete, onEdit }) =
   );
 };
 
-const StorageLocation: React.FC<StorageLocationProps> = ({ id, title, items, onDelete, onEdit }) => (
+const StorageLocation: React.FC<StorageLocationProps> = ({ title, items, onDelete, onEdit }) => (
   <div className="border p-2 min-h-24">
     {title && <div className="text-sm font-semibold mb-1">{title}</div>}
     <SortableContext
