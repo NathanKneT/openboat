@@ -45,7 +45,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const SortableItem = ({ id, sail, onDelete, onEdit }) => {
+const SortableItem = ({ sail, onDelete, onEdit }) => {
   const [showDetails, setShowDetails] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const {
@@ -144,7 +144,7 @@ const SortableItem = ({ id, sail, onDelete, onEdit }) => {
   );
 };
 
-const StorageLocation = ({ id, title, items, onDelete, onEdit }) => (
+const StorageLocation = ({ title, items, onDelete, onEdit }) => (
   <div className="border p-2 min-h-24">
     {title && <div className="text-sm font-semibold mb-1">{title}</div>}
     <SortableContext
@@ -166,7 +166,7 @@ const StorageLocation = ({ id, title, items, onDelete, onEdit }) => (
   </div>
 );
 
-const EditSailForm = ({ sail, onEdit, onClose }) => {
+const EditSailForm = ({ sail, onEdit }) => {
     const [formData, setFormData] = useState({
       name: sail.name,
       type: sail.type,
