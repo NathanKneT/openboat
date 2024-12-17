@@ -421,7 +421,7 @@ const StorageApp = () => {
                 <h3 className="font-bold">Plus ancienne voile</h3>
                 <p>Client: {stats.oldestSail.clientName}</p>
                 <p>Bateau: {stats.oldestSail.boatName}</p>
-                <p>Date d'ajout: {new Date(stats.oldestSail.dateAdded).toLocaleDateString()}</p>
+                <p>Date ajout: {new Date(stats.oldestSail.dateAdded).toLocaleDateString()}</p>
               </div>
             )}
 
