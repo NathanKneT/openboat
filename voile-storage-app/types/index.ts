@@ -1,54 +1,36 @@
-export interface Sail {
-    id: string;
-    name: string;
-    type: SailType;
-    clientId: string;
-    clientName: string;
-    boatId: string;
-    boatName: string;
-    dateAdded: string;
-    lastModified: string;
-    position: string;
-  }
-  
-  export interface Client {
-    id: string;
-    name: string;
-    boats: Boat[];
-  }
-  
-  export interface Boat {
-    id: string;
-    name: string;
-    clientId: string;
-  }
+interface Sail {
+  id: string;
+  name: string;
+  type: string;
+  clientName: string;
+  boatName: string;
+  dateAdded: string;
+  lastModified: string;
+  position: string;
+}
 
-  export type SailType = 
-  | "Grand-voile" 
-  | "Génois" 
-  | "Foc" 
-  | "Spinnaker"
-  | "Gennaker"
-  | "Code 0"
-  | "Trinquette"
-  | "Tourmentin"
-  | "Voile d'étai";
+interface SortableItemProps {
+  sail: Sail;
+  onDelete: (id: string) => void;
+  onEdit: (sail: Sail) => void;
+}
 
-  export interface StorageLocationProps {
-    id: string;
-    title?: string;
-    items: Sail[];
-  }
+interface StorageLocationProps {
+  id?: string;
+  title?: string;
+  items: Sail[];
+  onDelete: (id: string) => void;
+  onEdit: (sail: Sail) => void;
+}
 
-  export interface SortableItemProps {
-    id: string;
-    sail: Sail;
-  }
-  
-  export type StorageLocation = 'entree' | 'plancher' | `${string}_${string}`;
-  
-  export interface StorageData {
-    [aisle: string]: {
-      [level: string]: Sail[];
-    };
-  }
+interface EditSailFormProps {
+  sail: Sail;
+  onEdit: (sail: Sail) => void;
+  onClose?: () => void;
+}
+
+interface StorageState {
+  [aisle: string]: {
+    [level: string]: Sail[];
+  };
+}

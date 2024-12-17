@@ -6,6 +6,7 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
+  DragEndEvent
 } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -45,7 +46,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const SortableItem = ({ sail, onDelete, onEdit }) => {
+const SortableItem: React.FC<SortableItemProps> = ({ sail, onDelete, onEdit }) => {
   const [showDetails, setShowDetails] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const {
@@ -144,7 +145,7 @@ const SortableItem = ({ sail, onDelete, onEdit }) => {
   );
 };
 
-const StorageLocation = ({ title, items, onDelete, onEdit }) => (
+const StorageLocation: React.FC<StorageLocationProps> = ({ id, title, items, onDelete, onEdit }) => (
   <div className="border p-2 min-h-24">
     {title && <div className="text-sm font-semibold mb-1">{title}</div>}
     <SortableContext
@@ -154,8 +155,7 @@ const StorageLocation = ({ title, items, onDelete, onEdit }) => (
       <div>
         {items.map((sail) => (
           <SortableItem 
-            key={sail.id} 
-            id={sail.id} 
+            key={sail.id}
             sail={sail}
             onDelete={onDelete}
             onEdit={onEdit}
@@ -166,14 +166,14 @@ const StorageLocation = ({ title, items, onDelete, onEdit }) => (
   </div>
 );
 
-const EditSailForm = ({ sail, onEdit }) => {
-    const [formData, setFormData] = useState({
-      name: sail.name,
-      type: sail.type,
-      clientName: sail.clientName,
-      boatName: sail.boatName,
-      location: sail.position || 'entree' // Valeur par défaut
-    });
+const EditSailForm: React.FC<EditSailFormProps> = ({ sail, onEdit }) => {
+  const [formData, setFormData] = useState({
+    name: sail.name,
+    type: sail.type,
+    clientName: sail.clientName,
+    boatName: sail.boatName,
+    location: sail.position || 'entree'
+  });
 
   const sailTypes = [
     "Grand-voile", "Génois", "Foc", "Spinnaker", "Gennaker",
@@ -197,7 +197,7 @@ const EditSailForm = ({ sail, onEdit }) => {
       onEdit({
         ...sail,
         ...formData,
-        position: formData.location, // S'assurer que la position est mise à jour
+        position: formData.location,
         lastModified: new Date().toISOString()
       });
     }} className="space-y-4">
@@ -213,27 +213,27 @@ const EditSailForm = ({ sail, onEdit }) => {
           {type === 'input' ? (
             <Input
               id={id}
-              value={formData[id]}
+              value={formData[id as keyof typeof formData]}
               onChange={(e) => setFormData(prev => ({ ...prev, [id]: e.target.value }))}
               required
             />
           ) : (
             <Select
-              value={formData[id]}
+              value={formData[id as keyof typeof formData]}
               onValueChange={(value) => setFormData(prev => ({ ...prev, [id]: value }))}
             >
               <SelectTrigger>
                 <SelectValue placeholder={`Choisir ${label.toLowerCase()}`} />
               </SelectTrigger>
               <SelectContent>
-                {options.map((option) => (
-                  <SelectItem 
-                    key={option.id || option} 
-                    value={option.id || option}
-                  >
-                    {option.label || option}
-                  </SelectItem>
-                ))}
+              {options?.map((option: string | { id: string; label: string }) => (
+                <SelectItem 
+                  key={typeof option === 'string' ? option : option.id} 
+                  value={typeof option === 'string' ? option : option.id}
+                >
+                  {typeof option === 'string' ? option : option.label}
+                </SelectItem>
+              ))}
               </SelectContent>
             </Select>
           )}
@@ -244,24 +244,26 @@ const EditSailForm = ({ sail, onEdit }) => {
   );
 };
 
-const StorageApp = () => {
-  const [storage, setStorage] = useState({});
-  const [plancher, setPlancher] = useState([]);
-  const [entree, setEntree] = useState([]);
-  const [editingSail, setEditingSail] = useState(null);
+const StorageApp: React.FC = () => {
+  const [storage, setStorage] = useState<StorageState>({});
+  const [plancher, setPlancher] = useState<Sail[]>([]);
+  const [entree, setEntree] = useState<Sail[]>([]);
+  const [editingSail, setEditingSail] = useState<Sail | null>(null);
   const aisles = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
   const levels = ['Haut', 'Bas'];
 
   const sensors = useSensors(
     useSensor(PointerSensor),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates
+    })
   );
 
-  const handleDragEnd = (event) => {
+  const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
-    const findContainer = (id) => {
+    const findContainer = (id: string) => {
       if (entree.find((sail) => sail.id === id)) return 'entree';
       if (plancher.find((sail) => sail.id === id)) return 'plancher';
       for (const [aisle, levels] of Object.entries(storage)) {
@@ -273,21 +275,21 @@ const StorageApp = () => {
       }
       return null;
     };
-
-    const sourceContainer = findContainer(active.id);
-    const destinationContainer = findContainer(over.id) || over.id;
-
+  
+    const sourceContainer = findContainer(active.id.toString());
+    const destinationContainer = (findContainer(over.id.toString()) || over.id) as string;
+  
     if (!sourceContainer) return;
-
+  
     const sail = (() => {
       if (sourceContainer === 'entree') return entree.find((s) => s.id === active.id);
       if (sourceContainer === 'plancher') return plancher.find((s) => s.id === active.id);
       const [aisle, level] = sourceContainer.split('_');
       return storage[aisle]?.[level]?.find((s) => s.id === active.id);
     })();
-
+  
     if (!sail) return;
-
+  
     // Remove from source
     if (sourceContainer === 'entree') {
       setEntree(prev => prev.filter(s => s.id !== active.id));
@@ -303,7 +305,7 @@ const StorageApp = () => {
         }
       }));
     }
-
+  
     // Add to destination
     const updatedSail = { ...sail, lastModified: new Date().toISOString() };
     if (destinationContainer === 'entree') {
@@ -315,14 +317,14 @@ const StorageApp = () => {
       setStorage(prev => ({
         ...prev,
         [aisle]: {
-          ...prev[aisle],
+          ...prev[aisle] || {},
           [level]: [...(prev[aisle]?.[level] || []), updatedSail]
         }
       }));
     }
   };
 
-  const addSailToLocation = (sail, location) => {
+  const addSailToLocation = (sail: Sail, location: string) => {
     if (location === 'entree') {
       setEntree(prev => [...prev, sail]);
     } else if (location === 'plancher') {
@@ -348,7 +350,7 @@ const StorageApp = () => {
       )
     ];
 
-    const sailsByClient = allSails.reduce((acc, sail) => ({
+    const sailsByClient = allSails.reduce<{ [key: string]: number }>((acc, sail) => ({
       ...acc,
       [sail.clientName]: (acc[sail.clientName] || 0) + 1
     }), {});
@@ -359,7 +361,7 @@ const StorageApp = () => {
       stored: allSails.length - plancher.length,
       oldestSail: allSails.reduce((oldest, sail) =>
         !oldest || new Date(sail.dateAdded) < new Date(oldest.dateAdded) ? sail : oldest
-      , null),
+      , null as Sail | null),
       sailsByClient
     };
   };
@@ -468,23 +470,22 @@ const StorageApp = () => {
                       <DialogTitle>Ajouter une nouvelle voile</DialogTitle>
                     </DialogHeader>
                     <EditSailForm 
-                sail={{
-                  id: crypto.randomUUID(),
-                  dateAdded: new Date().toISOString(),
-                  lastModified: new Date().toISOString(),
-                  name: '',
-                  type: '',
-                  clientName: '',
-                  boatName: '',
-                  position: 'entree'
-                }}
-                onEdit={(sail) => {
-                  addSailToLocation(sail, sail.position);
-                }}
-                onClose={() => {}}
-              />
-            </DialogContent>
-          </Dialog>
+                      sail={{
+                        id: crypto.randomUUID(),
+                        dateAdded: new Date().toISOString(),
+                        lastModified: new Date().toISOString(),
+                        name: '',
+                        type: '',
+                        clientName: '',
+                        boatName: '',
+                        position: 'entree'
+                      }}
+                      onEdit={(sail) => {
+                        addSailToLocation(sail, sail.position);
+                      }}
+                    />
+                  </DialogContent>
+                </Dialog>
               </CardHeader>
               <CardContent>
                 <div className="flex gap-4 mb-4">
@@ -530,9 +531,11 @@ const StorageApp = () => {
                     id="import-file"
                   />
                   <Label htmlFor="import-file">
-                    <Button as="span">
-                      <Upload className="mr-2 h-4 w-4" />
-                      Importer
+                    <Button asChild>
+                      <span>
+                        <Upload className="mr-2 h-4 w-4" />
+                        Importer
+                      </span>
                     </Button>
                   </Label>
                 </div>
@@ -576,41 +579,40 @@ const StorageApp = () => {
         </Tabs>
 
         <Dialog open={!!editingSail} onOpenChange={(open) => !open && setEditingSail(null)}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Modifier la voile</DialogTitle>
-              </DialogHeader>
-              {editingSail && (
-                <EditSailForm
-                  sail={editingSail}
-                  onEdit={(updatedSail) => {
-                    // Supprimer de l'ancienne position
-                    if (editingSail.position === 'entree') {
-                      setEntree(prev => prev.filter(s => s.id !== updatedSail.id));
-                    } else if (editingSail.position === 'plancher') {
-                      setPlancher(prev => prev.filter(s => s.id !== updatedSail.id));
-                    } else {
-                      const [oldAisle, oldLevel] = editingSail.position.split('_');
-                      setStorage(prev => ({
-                        ...prev,
-                        [oldAisle]: {
-                          ...prev[oldAisle],
-                          [oldLevel]: prev[oldAisle]?.[oldLevel]?.filter(s => s.id !== updatedSail.id) || []
-                        }
-                      }));
-                    }
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Modifier la voile</DialogTitle>
+            </DialogHeader>
+            {editingSail && (
+              <EditSailForm
+                sail={editingSail}
+                onEdit={(updatedSail) => {
+                  // Supprimer de l'ancienne position
+                  if (editingSail.position === 'entree') {
+                    setEntree(prev => prev.filter(s => s.id !== updatedSail.id));
+                  } else if (editingSail.position === 'plancher') {
+                    setPlancher(prev => prev.filter(s => s.id !== updatedSail.id));
+                  } else {
+                    const [oldAisle, oldLevel] = editingSail.position.split('_');
+                    setStorage(prev => ({
+                      ...prev,
+                      [oldAisle]: {
+                        ...prev[oldAisle],
+                        [oldLevel]: prev[oldAisle]?.[oldLevel]?.filter(s => s.id !== updatedSail.id) || []
+                      }
+                    }));
+                  }
 
-                    // Ajouter à la nouvelle position
-                    addSailToLocation(updatedSail, updatedSail.position);
-                    setEditingSail(null);
-                  }}
-                  onClose={() => setEditingSail(null)}
-                />
-              )}
-            </DialogContent>
-          </Dialog>
-        </DndContext>
-      </div>
+                  // Ajouter à la nouvelle position
+                  addSailToLocation(updatedSail, updatedSail.position);
+                  setEditingSail(null);
+                }}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
+      </DndContext>
+    </div>
   );
 };
 
