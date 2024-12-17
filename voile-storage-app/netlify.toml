@@ -1,6 +1,6 @@
 [build]
   command = "npm run build"
-  publish = "voile-storage-app/out"    # Changez ça de .next à out
+  publish = "out"
   base = "voile-storage-app"
 
 [[redirects]]

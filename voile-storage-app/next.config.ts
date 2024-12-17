@@ -2,9 +2,9 @@
 const nextConfig = {
   output: 'export',  // Important pour Netlify
   images: {
-    unoptimized: true, // Nécessaire pour l'export statique
+    unoptimized: true,
   },
-  trailingSlash: true, // Optionnel mais peut aider avec les routes
+  trailingSlash: true,
 }
 
 module.exports = nextConfig
