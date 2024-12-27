@@ -16,11 +16,12 @@ interface SortableItemProps {
 }
 
 interface StorageLocationProps {
-  id?: string;
+  id: string;
   title?: string;
   items: Sail[];
   onDelete: (id: string) => void;
   onEdit: (sail: Sail) => void;
+  activeSail: Sail | null;
 }
 
 interface EditSailFormProps {

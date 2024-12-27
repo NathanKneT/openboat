@@ -6,7 +6,10 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-  DragEndEvent
+  DragEndEvent,
+  useDroppable,
+  UniqueIdentifier,
+  DragStartEvent
 } from '@dnd-kit/core';
 import {
   SortableContext,
@@ -46,20 +49,33 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+const SailItem: React.FC<{ sail: Sail }> = ({ sail }) => {
+  return (
+    <div className="bg-blue-100 p-2 h-16 w-full flex flex-col justify-center text-sm rounded hover:bg-blue-200 transition-colors">
+      <div className="font-semibold truncate">{sail.name}</div>
+      <div className="text-gray-600 truncate">{sail.type}</div>
+    </div>
+  );
+};
+
 const SortableItem: React.FC<SortableItemProps> = ({ sail, onDelete, onEdit }) => {
   const [showDetails, setShowDetails] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  
   const {
     attributes,
     listeners,
     setNodeRef,
     transform,
     transition,
+    isDragging
   } = useSortable({ id: sail.id });
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
+    opacity: isDragging ? 0.5 : 1,
+    width: '100%', // Assure que l'élément prend toute la largeur disponible
   };
 
   return (
@@ -69,15 +85,14 @@ const SortableItem: React.FC<SortableItemProps> = ({ sail, onDelete, onEdit }) =
         style={style}
         {...attributes}
         {...listeners}
-        className="bg-blue-100 p-2 mb-1 text-sm rounded cursor-move hover:bg-blue-200 transition-colors"
-        onClick={() => !transform && setShowDetails(true)}
+        className="mb-2 cursor-move"
+        onClick={(e) => {
+          if (!isDragging) {
+            setShowDetails(true);
+          }
+        }}
       >
-        <div className="font-semibold">{sail.name} - {sail.type}</div>
-        <div>Client: {sail.clientName}</div>
-        <div>Bateau: {sail.boatName}</div>
-        <div className="text-xs text-gray-500">
-          Ajoutée le: {new Date(sail.dateAdded).toLocaleDateString()}
-        </div>
+        <SailItem sail={sail} />
       </div>
 
       <Dialog open={showDetails} onOpenChange={setShowDetails}>
@@ -145,26 +160,88 @@ const SortableItem: React.FC<SortableItemProps> = ({ sail, onDelete, onEdit }) =
   );
 };
 
-const StorageLocation: React.FC<StorageLocationProps> = ({ title, items, onDelete, onEdit }) => (
-  <div className="border p-2 min-h-24">
-    {title && <div className="text-sm font-semibold mb-1">{title}</div>}
-    <SortableContext
-      items={items.map(item => item.id)}
-      strategy={verticalListSortingStrategy}
-    >
-      <div>
-        {items.map((sail) => (
-          <SortableItem 
-            key={sail.id}
-            sail={sail}
-            onDelete={onDelete}
-            onEdit={onEdit}
-          />
-        ))}
+const AnimatedDropZone = ({ isDragging, children }: { isDragging: boolean; children: React.ReactNode }) => {
+  return (
+    <div className={`relative border rounded-lg ${isDragging ? 'border-blue-400 border-2' : 'border-gray-200 border'}`}>
+      {/* Zone de drop animée - visible uniquement pendant le drag */}
+      {isDragging && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div 
+            className="w-1/2 h-20 border-2 border-dashed border-blue-400 rounded-lg bg-blue-50/50
+            animate-[pulse_2s_ease-in-out_infinite] flex items-center justify-center"
+          >
+            <div className="text-blue-500 text-sm font-medium animate-[bounce_1s_ease-in-out_infinite]">
+              Déposer ici
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Contenu normal */}
+      <div className={`${isDragging ? 'opacity-50' : ''}`}>
+        {children}
       </div>
-    </SortableContext>
-  </div>
-);
+    </div>
+  );
+};
+
+const StorageLocation: React.FC<StorageLocationProps> = ({ 
+  id, 
+  title, 
+  items, 
+  onDelete, 
+  onEdit,
+  activeSail  // Récupération de la prop
+}) => {
+  const { setNodeRef, isOver } = useDroppable({ id });
+  const isDragging = !!activeSail;
+  const isLargeDropZone = id === 'entree' || id === 'plancher';
+
+  return (
+    <div ref={setNodeRef}>
+      {isLargeDropZone ? (
+        <AnimatedDropZone isDragging={isDragging}>
+          <div className="p-4">
+            {title && <div className="text-sm font-semibold mb-4">{title}</div>}
+            <SortableContext
+              items={items.map(item => item.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="flex flex-col gap-2">
+                {items.map((sail) => (
+                  <SortableItem 
+                    key={sail.id}
+                    sail={sail}
+                    onDelete={onDelete}
+                    onEdit={onEdit}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </div>
+        </AnimatedDropZone>
+      ) : (
+        <div className="border p-2 min-h-24">
+          {title && <div className="text-sm font-semibold mb-1">{title}</div>}
+          <SortableContext
+            items={items.map(item => item.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="flex flex-col gap-2">
+              {items.map((sail) => (
+                <SortableItem 
+                  key={sail.id}
+                  sail={sail}
+                  onDelete={onDelete}
+                  onEdit={onEdit}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const EditSailForm: React.FC<EditSailFormProps> = ({ sail, onEdit }) => {
   const [formData, setFormData] = useState({
@@ -249,71 +326,105 @@ const StorageApp: React.FC = () => {
   const [plancher, setPlancher] = useState<Sail[]>([]);
   const [entree, setEntree] = useState<Sail[]>([]);
   const [editingSail, setEditingSail] = useState<Sail | null>(null);
+  const [activeSail, setActiveSail] = useState<Sail | null>(null);
+  
   const aisles = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
   const levels = ['Haut', 'Bas'];
 
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates
     })
   );
 
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
+  const findSailAndLocation = (id: string): [Sail | undefined, string] => {
+    // Chercher dans l'entrée
+    const entrySail = entree.find(s => s.id === id);
+    if (entrySail) return [entrySail, 'entree'];
 
-    const findContainer = (id: string) => {
-      if (entree.find((sail) => sail.id === id)) return 'entree';
-      if (plancher.find((sail) => sail.id === id)) return 'plancher';
-      for (const [aisle, levels] of Object.entries(storage)) {
-        for (const [level, sails] of Object.entries(levels)) {
-          if (sails.find((sail) => sail.id === id)) {
-            return `${aisle}_${level}`;
-          }
-        }
+    // Chercher dans le plancher
+    const floorSail = plancher.find(s => s.id === id);
+    if (floorSail) return [floorSail, 'plancher'];
+
+    // Chercher dans le stockage
+    for (const [aisle, levels] of Object.entries(storage)) {
+      for (const [level, sails] of Object.entries(levels)) {
+        const sail = sails.find(s => s.id === id);
+        if (sail) return [sail, `${aisle}_${level}`];
       }
-      return null;
-    };
-  
-    const sourceContainer = findContainer(active.id.toString());
-    const destinationContainer = (findContainer(over.id.toString()) || over.id) as string;
-  
-    if (!sourceContainer) return;
-  
-    const sail = (() => {
-      if (sourceContainer === 'entree') return entree.find((s) => s.id === active.id);
-      if (sourceContainer === 'plancher') return plancher.find((s) => s.id === active.id);
-      const [aisle, level] = sourceContainer.split('_');
-      return storage[aisle]?.[level]?.find((s) => s.id === active.id);
-    })();
-  
-    if (!sail) return;
-  
-    // Remove from source
-    if (sourceContainer === 'entree') {
-      setEntree(prev => prev.filter(s => s.id !== active.id));
-    } else if (sourceContainer === 'plancher') {
-      setPlancher(prev => prev.filter(s => s.id !== active.id));
+    }
+
+    return [undefined, ''];
+  };
+
+  const handleDragStart = (event: DragStartEvent) => {
+    const [sail] = findSailAndLocation(event.active.id.toString());
+    if (sail) {
+      setActiveSail(sail);
+    }
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    console.log('Drag End:', event);
+    const { active, over } = event;
+    
+    if (!active || !over) {
+      console.log('No valid drag destination');
+      setActiveSail(null);
+      return;
+    }
+
+    const [sail, sourceLocation] = findSailAndLocation(active.id.toString());
+    const destinationLocation = over.id.toString();
+
+    console.log('Drag details:', {
+      sail: sail?.name,
+      from: sourceLocation,
+      to: destinationLocation
+    });
+
+    if (!sail || sourceLocation === destinationLocation) {
+      console.log('Invalid drag operation');
+      setActiveSail(null);
+      return;
+    }
+
+    // Supprimer de la source
+    if (sourceLocation === 'entree') {
+      setEntree(prev => prev.filter(s => s.id !== sail.id));
+    } else if (sourceLocation === 'plancher') {
+      setPlancher(prev => prev.filter(s => s.id !== sail.id));
     } else {
-      const [aisle, level] = sourceContainer.split('_');
+      const [aisle, level] = sourceLocation.split('_');
       setStorage(prev => ({
         ...prev,
         [aisle]: {
           ...prev[aisle],
-          [level]: prev[aisle][level].filter(s => s.id !== active.id)
+          [level]: prev[aisle][level].filter(s => s.id !== sail.id)
         }
       }));
     }
-  
-    // Add to destination
-    const updatedSail = { ...sail, lastModified: new Date().toISOString() };
-    if (destinationContainer === 'entree') {
+
+    // Ajouter à la destination
+    const updatedSail = {
+      ...sail,
+      position: destinationLocation,
+      lastModified: new Date().toISOString()
+    };
+
+    console.log('Moving sail to new location:', updatedSail);
+
+    if (destinationLocation === 'entree') {
       setEntree(prev => [...prev, updatedSail]);
-    } else if (destinationContainer === 'plancher') {
+    } else if (destinationLocation === 'plancher') {
       setPlancher(prev => [...prev, updatedSail]);
     } else {
-      const [aisle, level] = destinationContainer.split('_');
+      const [aisle, level] = destinationLocation.split('_');
       setStorage(prev => ({
         ...prev,
         [aisle]: {
@@ -322,20 +433,29 @@ const StorageApp: React.FC = () => {
         }
       }));
     }
+
+    setActiveSail(null);
+    console.log('Drag operation completed');
   };
 
   const addSailToLocation = (sail: Sail, location: string) => {
+    const updatedSail = {
+      ...sail,
+      position: location,
+      lastModified: new Date().toISOString()
+    };
+
     if (location === 'entree') {
-      setEntree(prev => [...prev, sail]);
+      setEntree(prev => [...prev, updatedSail]);
     } else if (location === 'plancher') {
-      setPlancher(prev => [...prev, sail]);
+      setPlancher(prev => [...prev, updatedSail]);
     } else {
       const [aisle, level] = location.split('_');
       setStorage(prev => ({
         ...prev,
         [aisle]: {
-          ...prev[aisle],
-          [level]: [...(prev[aisle]?.[level] || []), sail]
+          ...prev[aisle] || {},
+          [level]: [...(prev[aisle]?.[level] || []), updatedSail]
         }
       }));
     }
@@ -371,10 +491,12 @@ const StorageApp: React.FC = () => {
       {aisles.map(aisle => (
         <div key={aisle} className="border p-2">
           <div className="text-center font-bold mb-2">Allée {aisle}</div>
-          {levels.map(level => (
+          {levels.map(level => {
+            const locationId = `${aisle}_${level}`;
+            return (
             <StorageLocation
-              key={`${aisle}_${level}`}
-              id={`${aisle}_${level}`}
+              key={locationId}
+              id={locationId}
               title={level}
               items={storage[aisle]?.[level] || []}
               onDelete={(id) => {
@@ -387,8 +509,10 @@ const StorageApp: React.FC = () => {
                 }));
               }}
               onEdit={setEditingSail}
+              activeSail={activeSail}  // Ajout de la prop
             />
-          ))}
+            );
+          })}
         </div>
       ))}
     </div>
@@ -447,6 +571,7 @@ const StorageApp: React.FC = () => {
       <DndContext
         sensors={sensors}
         collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
         <Tabs defaultValue="storage">
@@ -545,12 +670,13 @@ const StorageApp: React.FC = () => {
                     <CardTitle>Entrée</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <StorageLocation
-                      id="entree"
-                      items={entree}
-                      onDelete={(id) => setEntree(prev => prev.filter(s => s.id !== id))}
-                      onEdit={setEditingSail}
-                    />
+                  <StorageLocation
+                    id="entree"
+                    items={entree}
+                    onDelete={(id) => setEntree(prev => prev.filter(s => s.id !== id))}
+                    onEdit={setEditingSail}
+                    activeSail={activeSail}  // Ajout de la prop
+                  />
                   </CardContent>
                 </Card>
 
@@ -561,12 +687,13 @@ const StorageApp: React.FC = () => {
                     <CardTitle>Plancher</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <StorageLocation
-                      id="plancher"
-                      items={plancher}
-                      onDelete={(id) => setPlancher(prev => prev.filter(s => s.id !== id))}
-                      onEdit={setEditingSail}
-                    />
+                  <StorageLocation
+                    id="plancher"
+                    items={plancher}
+                    onDelete={(id) => setPlancher(prev => prev.filter(s => s.id !== id))}
+                    onEdit={setEditingSail}
+                    activeSail={activeSail}  // Ajout de la prop
+                  />
                   </CardContent>
                 </Card>
               </CardContent>
