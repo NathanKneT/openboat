@@ -8,7 +8,6 @@ import {
   useSensors,
   DragEndEvent,
   useDroppable,
-  UniqueIdentifier,
   DragStartEvent
 } from '@dnd-kit/core';
 import {
@@ -87,6 +86,7 @@ const SortableItem: React.FC<SortableItemProps> = ({ sail, onDelete, onEdit }) =
         {...listeners}
         className="mb-2 cursor-move"
         onClick={(e) => {
+          e.preventDefault();
           if (!isDragging) {
             setShowDetails(true);
           }
@@ -192,7 +192,7 @@ const StorageLocation: React.FC<StorageLocationProps> = ({
   onEdit,
   activeSail  // Récupération de la prop
 }) => {
-  const { setNodeRef, isOver } = useDroppable({ id });
+  const { setNodeRef } = useDroppable({ id });
   const isDragging = !!activeSail;
   const isLargeDropZone = id === 'entree' || id === 'plancher';
 
